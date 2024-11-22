@@ -27,7 +27,7 @@ if you want to run the repo on colab follow the script:
 ```
 !pip uninstall pettingzoo
 !pip install -r requirements.txt
-%cd RL-final-project-AIT-3007
+%cd Magent2-RL
 !python main.py
 ```
 
