@@ -16,14 +16,20 @@ Your agent's performance should be evaluated based on reward and win rate agains
 
 See `video` folder for a demo of how each type of opponent behaves.
 
-## Installation
-clone this repo and install with
+## Installation & Run the repo
+if you want to run the repo on vscode, pls following the commands:
 ```
+pip uninstall pettingzoo
 pip install -r requirements.txt
+python main.py
 ```
-
-## Demos
-See `main.py` for a starter code.
+if you want to run the repo on colab follow the script:
+```
+!pip uninstall pettingzoo
+!pip install -r requirements.txt
+%cd RL-final-project-AIT-3007
+!python main.py
+```
 
 ## References
 
