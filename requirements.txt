@@ -1,0 +1,5 @@
+git+https://github.com/Farama-Foundation/MAgent2
+opencv-python
+torch
+pettingzoo==1.23.1
+imageio
