@@ -5,54 +5,48 @@ import torch.optim as optim
 import torch.nn as nn
 import numpy as np
 from magent2.environments import battle_v4
-from torch_model import PolicyNetwork, QNetwork
+from torch_model import PolicyNetwork
 
-
-def train_model(env, blue_policy_network, red_q_network, optimizer, args):
-    all_rewards = []
+def train_model(env, blue_policy_network, optimizer, args):
     for episode in range(args.max_episodes):
         state = env.reset()
         log_probs = []
         rewards = []
         episode_reward = 0
-
-        # Normalize observations (running mean/variance could be added here)
-        def preprocess_observation(obs):
-            return torch.tensor(obs, dtype=torch.float32).permute(2, 0, 1).unsqueeze(0).to(device)
+        entropy_term = 0
 
         for agent in env.agent_iter():
             observation, reward, termination, truncation, info = env.last()
-            reward = np.clip(reward, -1, 1)  # Clip reward to range [-1, 1]
 
             if termination or truncation:
                 env.step(None)
                 continue
 
             if agent.startswith("blue"):
-                obs_tensor = preprocess_observation(observation)
+                # Normalize observation
+                observation = torch.tensor(observation, dtype=torch.float32).permute(2, 0, 1).unsqueeze(0).to(device) / 255.0
 
-                # Policy sampling
-                action_probs = blue_policy_network(obs_tensor)
+                # Policy sampling with exploration
+                action_probs = blue_policy_network(observation)
                 action_distribution = torch.distributions.Categorical(action_probs)
                 action = action_distribution.sample()
 
                 log_prob = action_distribution.log_prob(action)
                 log_probs.append(log_prob)
-                rewards.append(reward)
+                entropy_term += action_distribution.entropy().mean()
 
+                rewards.append(reward)
                 env.step(action.item())
                 episode_reward += reward
 
             elif agent.startswith("red"):
-                obs_tensor = preprocess_observation(observation)
-                with torch.no_grad():
-                    q_values = red_q_network(obs_tensor)
-                action = torch.argmax(q_values, dim=1).item()
+                # Red agents act randomly
+                action = env.action_space(agent).sample()
                 env.step(action)
             else:
                 env.step(env.action_space(agent).sample())
 
-        # Calculate policy gradients and update
+        # Compute discounted rewards
         discounted_rewards = []
         cumulative_reward = 0
         for r in reversed(rewards):
@@ -60,68 +54,49 @@ def train_model(env, blue_policy_network, red_q_network, optimizer, args):
             discounted_rewards.insert(0, cumulative_reward)
 
         discounted_rewards = torch.tensor(discounted_rewards, dtype=torch.float32).to(device)
-        # Normalize rewards for better numerical stability
         discounted_rewards = (discounted_rewards - discounted_rewards.mean()) / (discounted_rewards.std() + 1e-9)
 
+        # Compute policy loss
         policy_loss = []
         for log_prob, reward in zip(log_probs, discounted_rewards):
             policy_loss.append(-log_prob * reward)
         policy_loss = torch.cat(policy_loss).sum()
 
+        # Include entropy for exploration regularization
+        loss = policy_loss - args.entropy_coef * entropy_term
+
         optimizer.zero_grad()
-        policy_loss.backward()
-
-        # Gradient clipping
-        torch.nn.utils.clip_grad_norm_(blue_policy_network.parameters(), max_norm=1.0)
-
+        loss.backward()
         optimizer.step()
 
-        all_rewards.append(episode_reward)
+        print(f"Episode {episode + 1}/{args.max_episodes}, Reward: {episode_reward:.2f}")
 
-        # Logging
-        if (episode + 1) % args.log_interval == 0:
-            avg_reward = np.mean(all_rewards[-args.log_interval:])
-            print(
-                f"Episode {episode + 1}/{args.max_episodes}, "
-                f"Average Reward (Last {args.log_interval}): {avg_reward:.2f}, "
-                f"Loss: {policy_loss.item():.4f}"
-            )
-
-        # Save model periodically
         if (episode + 1) % args.save_interval == 0:
-            save_path = f"pretrained/blue_agent_episode_{episode + 1}.pt"
-            torch.save(blue_policy_network.state_dict(), save_path)
-            print(f"Saved model to {save_path}")
+            model_path = f"pretrained/blue_episode_{episode + 1}.pt"
+            torch.save(blue_policy_network.state_dict(), model_path)
+            print(f"Model saved to {model_path}")
 
-    # Final model save
-    final_save_path = "pretrained/blue.pt"
-    torch.save(blue_policy_network.state_dict(), final_save_path)
-    print(f"Training completed. Final model saved to {final_save_path}")
-
+    # Save final model
+    torch.save(blue_policy_network.state_dict(), "pretrained/blue_final.pt")
+    print("Training complete. Final model saved to pretrained/blue_final.pt")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train a REINFORCE agent for battle_v4 environment")
     parser.add_argument("--learning_rate", type=float, default=1e-4, help="Learning rate for the optimizer")
     parser.add_argument("--gamma", type=float, default=0.99, help="Discount factor")
+    parser.add_argument("--entropy_coef", type=float, default=0.01, help="Entropy regularization coefficient")
     parser.add_argument("--max_episodes", type=int, default=500, help="Maximum number of training episodes")
     parser.add_argument("--save_interval", type=int, default=50, help="Save model every n episodes")
-    parser.add_argument("--log_interval", type=int, default=10, help="Log average reward every n episodes")
     args = parser.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # Initialize environment and models
     env = battle_v4.env(map_size=45, render_mode="rgb_array")
     env.reset()
-
-    red_q_network = QNetwork(env.observation_space("red_0").shape, env.action_space("red_0").n).to(device)
-    red_q_network.load_state_dict(torch.load("pretrained/red.pt", map_location=device))
-    red_q_network.eval()
 
     blue_policy_network = PolicyNetwork(env.observation_space("blue_0").shape, env.action_space("blue_0").n).to(device)
     optimizer = optim.Adam(blue_policy_network.parameters(), lr=args.learning_rate)
 
-    # Train the blue agent
-    train_model(env, blue_policy_network, red_q_network, optimizer, args)
+    train_model(env, blue_policy_network, optimizer, args)
 
     env.close()

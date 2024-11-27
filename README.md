@@ -16,7 +16,6 @@ You will primarily control *blue* agents during evaluation.
 <p align="center">
   <img src="assets/blue_vs_random.gif" width="300" alt="blue vs random" />
   <img src="assets/blue_vs_red.gif" width="300" alt="blue vs red" />
-  <img src="assets/blue_vs_blue.gif" width="300" alt="blue vs blue" />
 </p>
 
 You can explore the `video/` folder for demos showing how the agents behave in the following configurations:

@@ -75,14 +75,14 @@ if __name__ == "__main__":
         env.action_space("red_0").n,
     )
     blue_model = load_model(
-        "pretrained/blue_agent_episode_300.pt",
+        "pretrained/blue_final.pt",
         PolicyNetwork,
         env.observation_space("blue_0").shape,
         env.action_space("blue_0").n,
     )
 
     scenarios = {
-        "blue_vs_random": {"blue": blue_model},
+        #"blue_vs_random": {"blue": blue_model},
         "blue_vs_red": {"blue": blue_model, "red": red_model},
     }
 
