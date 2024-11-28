@@ -1,102 +1,110 @@
-import os
-import argparse
 import torch
 import torch.optim as optim
-import torch.nn as nn
-import numpy as np
+import random
+from collections import deque
 from magent2.environments import battle_v4
-from torch_model import PolicyNetwork
+from torch_model import QNetwork
 
-def train_model(env, blue_policy_network, optimizer, args):
-    for episode in range(args.max_episodes):
-        state = env.reset()
-        log_probs = []
-        rewards = []
-        episode_reward = 0
-        entropy_term = 0
+# Hyperparameters
+GAMMA = 0.99
+LR = 1e-3
+BATCH_SIZE = 64
+REPLAY_BUFFER_SIZE = 100000
+EPSILON_START = 1.0
+EPSILON_MIN = 0.01
+EPSILON_DECAY = 0.995
+TAU = 0.001  # Soft update factor for target network
 
-        for agent in env.agent_iter():
-            observation, reward, termination, truncation, info = env.last()
+# Initialize environment
+env = battle_v4.env(map_size=45, render_mode=None)
+obs_shape = env.observation_space("blue_0").shape
+action_size = env.action_space("blue_0").n
 
-            if termination or truncation:
-                env.step(None)
-                continue
+# Initialize Q-network and target network
+q_network = QNetwork(obs_shape, action_size)
+target_network = QNetwork(obs_shape, action_size)
+target_network.load_state_dict(q_network.state_dict())
+optimizer = optim.Adam(q_network.parameters(), lr=LR)
 
-            if agent.startswith("blue"):
-                # Normalize observation
-                observation = torch.tensor(observation, dtype=torch.float32).permute(2, 0, 1).unsqueeze(0).to(device) / 255.0
+# Replay buffer
+replay_buffer = deque(maxlen=REPLAY_BUFFER_SIZE)
 
-                # Policy sampling with exploration
-                action_probs = blue_policy_network(observation)
-                action_distribution = torch.distributions.Categorical(action_probs)
-                action = action_distribution.sample()
+def epsilon_greedy_policy(state, epsilon):
+    if random.random() < epsilon:
+        return random.randint(0, action_size - 1)  # Random action
+    with torch.no_grad():
+        q_values = q_network(state)
+        return torch.argmax(q_values).item()  # Best action
 
-                log_prob = action_distribution.log_prob(action)
-                log_probs.append(log_prob)
-                entropy_term += action_distribution.entropy().mean()
+def train():
+    if len(replay_buffer) < BATCH_SIZE:
+        return
+    batch = random.sample(replay_buffer, BATCH_SIZE)
+    states, actions, rewards, next_states, dones = zip(*batch)
 
-                rewards.append(reward)
-                env.step(action.item())
-                episode_reward += reward
+    # Convert to tensors
+    states = torch.tensor(states, dtype=torch.float32).permute(0, 3, 1, 2)
+    actions = torch.tensor(actions, dtype=torch.long)
+    rewards = torch.tensor(rewards, dtype=torch.float32)
+    next_states = torch.tensor(next_states, dtype=torch.float32).permute(0, 3, 1, 2)
+    dones = torch.tensor(dones, dtype=torch.float32)
 
-            elif agent.startswith("red"):
-                # Red agents act randomly
-                action = env.action_space(agent).sample()
-                env.step(action)
-            else:
-                env.step(env.action_space(agent).sample())
+    # Compute Q-values and target Q-values using Double DQN
+    q_values = q_network(states).gather(1, actions.unsqueeze(1)).squeeze()
+    with torch.no_grad():
+        q_values_next = q_network(next_states)  # Q-values from current network
+        max_q_values_next = target_network(next_states).gather(1, torch.argmax(q_values_next, dim=1).unsqueeze(1)).squeeze()
+        target_q_values = rewards + GAMMA * max_q_values_next * (1 - dones)
 
-        # Compute discounted rewards
-        discounted_rewards = []
-        cumulative_reward = 0
-        for r in reversed(rewards):
-            cumulative_reward = r + args.gamma * cumulative_reward
-            discounted_rewards.insert(0, cumulative_reward)
+    # Compute loss and optimize
+    loss = torch.nn.functional.mse_loss(q_values, target_q_values)
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
 
-        discounted_rewards = torch.tensor(discounted_rewards, dtype=torch.float32).to(device)
-        discounted_rewards = (discounted_rewards - discounted_rewards.mean()) / (discounted_rewards.std() + 1e-9)
+def soft_update(target, source, tau=TAU):
+    """ Soft update of target network's weights """
+    for target_param, param in zip(target.parameters(), source.parameters()):
+        target_param.data.copy_(tau * param.data + (1.0 - tau) * target_param.data)
 
-        # Compute policy loss
-        policy_loss = []
-        for log_prob, reward in zip(log_probs, discounted_rewards):
-            policy_loss.append(-log_prob * reward)
-        policy_loss = torch.cat(policy_loss).sum()
-
-        # Include entropy for exploration regularization
-        loss = policy_loss - args.entropy_coef * entropy_term
-
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-
-        print(f"Episode {episode + 1}/{args.max_episodes}, Reward: {episode_reward:.2f}")
-
-        if (episode + 1) % args.save_interval == 0:
-            model_path = f"pretrained/blue_episode_{episode + 1}.pt"
-            torch.save(blue_policy_network.state_dict(), model_path)
-            print(f"Model saved to {model_path}")
-
-    # Save final model
-    torch.save(blue_policy_network.state_dict(), "pretrained/blue_final.pt")
-    print("Training complete. Final model saved to pretrained/blue_final.pt")
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Train a REINFORCE agent for battle_v4 environment")
-    parser.add_argument("--learning_rate", type=float, default=1e-4, help="Learning rate for the optimizer")
-    parser.add_argument("--gamma", type=float, default=0.99, help="Discount factor")
-    parser.add_argument("--entropy_coef", type=float, default=0.01, help="Entropy regularization coefficient")
-    parser.add_argument("--max_episodes", type=int, default=500, help="Maximum number of training episodes")
-    parser.add_argument("--save_interval", type=int, default=50, help="Save model every n episodes")
-    args = parser.parse_args()
-
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    env = battle_v4.env(map_size=45, render_mode="rgb_array")
+# Training loop
+# Training loop
+epsilon = EPSILON_START
+for episode in range(100):  # Number of episodes
     env.reset()
+    for agent in env.agent_iter():
+        observation, reward, termination, truncation, info = env.last()
+        done = termination or truncation
 
-    blue_policy_network = PolicyNetwork(env.observation_space("blue_0").shape, env.action_space("blue_0").n).to(device)
-    optimizer = optim.Adam(blue_policy_network.parameters(), lr=args.learning_rate)
+        if done:
+            action = None  # This agent is done
+        else:
+            # Choose action using epsilon-greedy policy for blue agents
+            if agent.startswith("blue"):  # Only apply to blue agents
+                observation_tensor = torch.tensor(observation, dtype=torch.float32).permute(2, 0, 1).unsqueeze(0)
+                action = epsilon_greedy_policy(observation_tensor, epsilon)
+            else:
+                action = env.action_space(agent).sample()  # Random action for red agents
 
-    train_model(env, blue_policy_network, optimizer, args)
+        # Only add valid actions to the replay buffer
+        if action is not None:
+            replay_buffer.append((observation, action, reward, observation, done))
 
-    env.close()
+        env.step(action)  # Take the action
+
+    if len(replay_buffer) > BATCH_SIZE:
+        train()
+
+    # Perform soft update of target network
+    soft_update(target_network, q_network)
+
+    # Save model checkpoint every episode
+    torch.save(q_network.state_dict(), "blue.pt")
+    
+    # Decay epsilon
+    epsilon = max(EPSILON_MIN, epsilon * EPSILON_DECAY)
+
+    # Print progress (optional)
+    print(f"Episode {episode + 1}/100, Epsilon: {epsilon:.4f}")
+
+env.close()
