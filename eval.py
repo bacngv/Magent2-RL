@@ -1,5 +1,5 @@
 from magent2.environments import battle_v4
-from torch_model import QNetwork
+from torch_model import QNetwork, PolicyNetwork
 import torch
 import numpy as np
 
@@ -17,21 +17,39 @@ def eval():
     def random_policy(env, agent, obs):
         return env.action_space(agent).sample()
 
-    q_network = QNetwork(
+    # Load red agent model
+    red_q_network = QNetwork(
         env.observation_space("red_0").shape, env.action_space("red_0").n
     )
-    q_network.load_state_dict(
-        torch.load("red.pt", weights_only=True, map_location="cpu")
+    red_q_network.load_state_dict(
+        torch.load("pretrained/red.pt", weights_only=True, map_location=device)
     )
-    q_network.to(device)
+    red_q_network.to(device)
 
-    def pretrain_policy(env, agent, obs):
+    def red_policy(env, agent, obs):
         observation = (
             torch.Tensor(obs).float().permute([2, 0, 1]).unsqueeze(0).to(device)
         )
         with torch.no_grad():
-            q_values = q_network(observation)
+            q_values = red_q_network(observation)
         return torch.argmax(q_values, dim=1).cpu().numpy()[0]
+
+    # Load blue agent model
+    blue_policy_network = PolicyNetwork(
+        env.observation_space("blue_0").shape, env.action_space("blue_0").n
+    )
+    blue_policy_network.load_state_dict(
+        torch.load("pretrained/blue.pt", map_location=device)
+    )
+    blue_policy_network.to(device)
+
+    def blue_policy(env, agent, obs):
+        observation = (
+            torch.Tensor(obs).float().permute([2, 0, 1]).unsqueeze(0).to(device)
+        )
+        with torch.no_grad():
+            action_probs = blue_policy_network(observation)
+        return torch.argmax(action_probs, dim=1).cpu().numpy()[0]
 
     def run_eval(env, red_policy, blue_policy, n_episode: int = 100):
         red_win, blue_win = [], []
@@ -58,12 +76,11 @@ def eval():
 
                 if termination or truncation:
                     action = None  # this agent has died
-                    n_dead[agent_team] = n_dead[agent_team] + 1
+                    n_dead[agent_team] += 1
 
                     if (
                         n_dead[agent_team] == n_agent_each_team
-                        and who_loses
-                        is None  # all agents are terminated at the end of episodes
+                        and who_loses is None  # all agents are terminated at the end of episodes
                     ):
                         who_loses = agent_team
                 else:
@@ -88,18 +105,18 @@ def eval():
         }
 
     print("=" * 20)
-    print("Eval with random policy")
+    print("Eval Blue vs Random")
     print(
         run_eval(
-            env=env, red_policy=random_policy, blue_policy=random_policy, n_episode=30
+            env=env, red_policy=random_policy, blue_policy=blue_policy, n_episode=30
         )
     )
     print("=" * 20)
 
-    print("Eval with trained policy")
+    print("Eval Blue vs Red")
     print(
         run_eval(
-            env=env, red_policy=pretrain_policy, blue_policy=random_policy, n_episode=30
+            env=env, red_policy=red_policy, blue_policy=blue_policy, n_episode=30
         )
     )
     print("=" * 20)
