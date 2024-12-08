@@ -1,13 +1,13 @@
 import os
 import torch
 import numpy as np
-from pettingzoo.magent import battle_v3
+from magent2.environments import battle_v4 
 from algo import spawn_ai
 from senarios.senario_battle import play
 
 def run_battle_with_random_opponent(model_path, render_dir, map_size=45, max_steps=400, use_cuda=True):
     # Initialize the environment
-    env = battle_v3.env(
+    env = battle_v4.env(
         map_size=map_size,
         minimap_mode=True,
         step_reward=-0.005,
@@ -15,7 +15,8 @@ def run_battle_with_random_opponent(model_path, render_dir, map_size=45, max_ste
         attack_penalty=-0.1,
         attack_opponent_reward=0.2,
         max_cycles=max_steps,
-        extra_features=True
+        extra_features=True,
+        render_mode="rgb_array"
     )
     handles = env.unwrapped.env.get_handles()
 
@@ -38,7 +39,7 @@ def run_battle_with_random_opponent(model_path, render_dir, map_size=45, max_ste
     render_dir = os.path.abspath(render_dir)
     os.makedirs(render_dir, exist_ok=True)
     render_path = os.path.join(render_dir, "battle.gif")
-    
+
     _, _, _, _, render_list = play(
         env=env,
         n_round=0,
