@@ -39,17 +39,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # Initialize the environment
-    env = battle_v4.env(
-        map_size=args.map_size,
-        minimap_mode=True,
-        step_reward=-0.005,
-        dead_penalty=-0.1,
-        attack_penalty=-0.1,
-        attack_opponent_reward=0.2,
-        max_cycles=args.max_steps,
-        extra_features=True,
-        render_mode="rgb_array"
-    )
+    env = battle_v4.env(map_size=args.map_size,render_mode="rgb_array")
 
     handles = env.unwrapped.env.get_handles()
     log_dir = os.path.join(BASE_DIR, 'data/tmp/{}'.format(args.algo))
