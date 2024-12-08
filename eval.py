@@ -1,111 +1,148 @@
-from magent2.environments import battle_v4
-from torch_model import QNetwork
+import os
 import torch
 import numpy as np
+from magent2.environments import battle_v4 
+from algo import spawn_ai
+from senarios.senario_battle import play
+from torch_model import QNetwork
+from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
 
-try:
-    from tqdm import tqdm
-except ImportError:
-    tqdm = lambda x, *args, **kwargs: x  # Fallback: tqdm becomes a no-op
+def run_battle_evaluation(ac_model_path, red_model_path, render_dir, map_size=45, max_steps=2000, use_cuda=True, num_episodes=30):
+    blue_wins = 0
+    red_wins = 0
+    draws = 0
+    blue_total_rewards = []
+    red_total_rewards = []
 
+    for episode in range(num_episodes):
+        # env init
+        env = battle_v4.env(map_size=map_size)
+        handles = env.unwrapped.env.get_handles()
 
-def eval():
-    max_cycles = 300
-    env = battle_v4.env(map_size=45, max_cycles=max_cycles)
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+        # load blue model
+        blue_model = spawn_ai('ac', env, handles[0], 'blue', max_steps, use_cuda)
+        blue_model.load(ac_model_path, step=50)
 
-    def random_policy(env, agent, obs):
-        return env.action_space(agent).sample()
-
-    q_network = QNetwork(
-        env.observation_space("red_0").shape, env.action_space("red_0").n
-    )
-    q_network.load_state_dict(
-        torch.load("red.pt", weights_only=True, map_location="cpu")
-    )
-    q_network.to(device)
-
-    def pretrain_policy(env, agent, obs):
-        observation = (
-            torch.Tensor(obs).float().permute([2, 0, 1]).unsqueeze(0).to(device)
+        # load red model
+        q_network = QNetwork(
+            env.observation_space("red_0").shape, 
+            env.action_space("red_0").n
         )
-        with torch.no_grad():
-            q_values = q_network(observation)
-        return torch.argmax(q_values, dim=1).cpu().numpy()[0]
+        q_network.load_state_dict(
+            torch.load(red_model_path, weights_only=True, map_location="cpu")
+        )
 
-    def run_eval(env, red_policy, blue_policy, n_episode: int = 100):
-        red_win, blue_win = [], []
-        red_tot_rw, blue_tot_rw = [], []
-        n_agent_each_team = len(env.env.action_spaces) // 2
+        class QNetworkWrapper:
+            def __init__(self, q_network):
+                self.q_network = q_network
+                self.num_actions = q_network.network[-1].out_features
 
-        for _ in tqdm(range(n_episode)):
-            env.reset()
-            n_dead = {"red": 0, "blue": 0}
-            red_reward, blue_reward = 0, 0
-            who_loses = None
+            def act(self, obs, feature=None, prob=None, eps=0):
+                if not isinstance(obs, torch.Tensor):
+                    obs = torch.tensor(obs, dtype=torch.float32)
+                if len(obs.shape) == 3:
+                    obs = obs.unsqueeze(0)
+                if np.random.random() < eps:
+                    return np.random.randint(0, self.num_actions, obs.shape[0])
+                with torch.no_grad():
+                    obs = obs.permute(0, 3, 1, 2) if len(obs.shape) == 4 and obs.shape[-1] != self.q_network.network[0][0].weight.shape[1] else obs
+                    q_values = self.q_network(obs)
+                    return torch.argmax(q_values, dim=1).numpy()
 
-            for agent in env.agent_iter():
-                observation, reward, termination, truncation, info = env.last()
-                agent_team = agent.split("_")[0]
-                if agent_team == "red":
-                    red_reward += reward
-                else:
-                    blue_reward += reward
+        red_model = QNetworkWrapper(q_network)
 
-                if env.unwrapped.frames >= max_cycles and who_loses is None:
-                    who_loses = "red" if n_dead["red"] > n_dead["blue"] + 5 else "draw"
-                    who_loses = (
-                        "blue" if n_dead["red"] + 5 < n_dead["blue"] else who_loses
-                    )
+        #RETURN: max_nums, nums, mean_rewards [mean_red, mean_blue], total_rewards, obs_list
+        max_nums, nums, mean_rewards, _, obs_list = play(
+            env=env,
+            n_round=0,
+            handles=handles,
+            models=[red_model, blue_model],
+            print_every=50,
+            eps=1.0,
+            render=False,
+            train=False,
+            cuda=use_cuda
+        )
 
-                if termination or truncation:
-                    action = None  # this agent has died
-                    n_dead[agent_team] = n_dead[agent_team] + 1
-
-                    if (
-                        n_dead[agent_team] == n_agent_each_team
-                        and who_loses
-                        is None  # all agents are terminated at the end of episodes
-                    ):
-                        who_loses = agent_team
-                else:
-                    if agent_team == "red":
-                        action = red_policy(env, agent, observation)
-                    else:
-                        action = blue_policy(env, agent, observation)
-
-                env.step(action)
-
-            red_win.append(who_loses == "blue")
-            blue_win.append(who_loses == "red")
-
-            red_tot_rw.append(red_reward / n_agent_each_team)
-            blue_tot_rw.append(blue_reward / n_agent_each_team)
-
-        return {
-            "winrate_red": np.mean(red_win),
-            "winrate_blue": np.mean(blue_win),
-            "average_rewards_red": np.mean(red_tot_rw),
-            "average_rewards_blue": np.mean(blue_tot_rw),
+        n_dead = {
+            "blue": max_nums[0] - nums[0],
+            "red": max_nums[1] - nums[1]
         }
 
-    print("=" * 20)
-    print("Eval with random policy")
-    print(
-        run_eval(
-            env=env, red_policy=random_policy, blue_policy=random_policy, n_episode=30
-        )
-    )
-    print("=" * 20)
+        # law
+        who_loses = "red" if n_dead["red"] > n_dead["blue"] + 5 else "draw"
+        who_loses = "blue" if n_dead["red"] + 5 < n_dead["blue"] else who_loses
 
-    print("Eval with trained policy")
-    print(
-        run_eval(
-            env=env, red_policy=pretrain_policy, blue_policy=random_policy, n_episode=30
-        )
-    )
-    print("=" * 20)
+        if who_loses == "red":
+            blue_wins += 1
+        elif who_loses == "blue":
+            red_wins += 1
+        else:
+            draws += 1
+
+        # mean rewards
+        blue_total_rewards.append(mean_rewards[1])  
+        red_total_rewards.append(mean_rewards[0])   
+
+        # render for final episode
+        if episode == num_episodes - 1:
+            env = battle_v4.env(map_size=map_size, render_mode="rgb_array")
+            handles = env.unwrapped.env.get_handles()
+            
+            blue_model = spawn_ai('ac', env, handles[0], 'blue', max_steps, use_cuda)
+            blue_model.load(ac_model_path, step=50)
+            
+            q_network = QNetwork(
+                env.observation_space("red_0").shape, 
+                env.action_space("red_0").n
+            )
+            q_network.load_state_dict(
+                torch.load(red_model_path, weights_only=True, map_location="cpu")
+            )
+            red_model = QNetworkWrapper(q_network)
+
+            _, _, _, _, render_list = play(
+                env=env,
+                n_round=0,
+                handles=handles,
+                models=[red_model, blue_model],
+                print_every=50,
+                eps=1.0,
+                render=True,
+                train=False,
+                cuda=use_cuda
+            )
+
+            render_dir = os.path.abspath(render_dir)
+            os.makedirs(render_dir, exist_ok=True)
+            render_path = os.path.join(render_dir, "battle.gif")
+            
+            if render_list:
+                clip = ImageSequenceClip(render_list, fps=20)
+                clip.write_gif(render_path, fps=20, verbose=False)
+                print(f"[*] Render saved to {render_path}")
+
+    # stat
+    print("\n--- Evaluation Results ---")
+    print(f"Total Episodes: {num_episodes}")
+    print(f"Blue Wins: {blue_wins} ({blue_wins/num_episodes*100:.2f}%)")
+    print(f"Red Wins: {red_wins} ({red_wins/num_episodes*100:.2f}%)")
+    print(f"Draws: {draws} ({draws/num_episodes*100:.2f}%)")
+    print("\nReward Statistics:")
+    print(f"Blue Average Reward: {np.mean(blue_total_rewards):.2f} ± {np.std(blue_total_rewards):.2f}")
+    print(f"Red Average Reward: {np.mean(red_total_rewards):.2f} ± {np.std(red_total_rewards):.2f}")
 
 
 if __name__ == "__main__":
-    eval()
+    AC_MODEL_PATH = "data/models/ac-0"
+    RED_MODEL_PATH = "red.pt"
+    RENDER_DIR = "data"
+
+    run_battle_evaluation(
+        ac_model_path=AC_MODEL_PATH,
+        red_model_path=RED_MODEL_PATH,
+        render_dir=RENDER_DIR,
+        map_size=45,
+        use_cuda=True,
+        num_episodes=30
+    )
