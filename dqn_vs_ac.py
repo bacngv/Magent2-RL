@@ -30,7 +30,7 @@ def run_battle_with_red_opponent(ac_model_path, red_model_path, render_dir, map_
             self.q_network = q_network
             self.num_actions = q_network.network[-1].out_features
 
-        def act(self, obs, feature=None, prob=None, eps=1.0):
+        def act(self, obs, feature=None, prob=None, eps=0):
             # Add batch dimension if needed
             if len(obs.shape) == 3:
                 obs = obs.unsqueeze(0)
