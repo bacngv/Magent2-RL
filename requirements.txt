@@ -1,7 +1,6 @@
-moviepy==1.0.3
-numpy==1.21.2
-PettingZoo==1.14.0
-magent==0.1.14
+moviepy
+numpy
+git+https://github.com/Farama-Foundation/MAgent2
 torch
 torchaudio
 torchvision
