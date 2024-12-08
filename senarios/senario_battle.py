@@ -16,7 +16,7 @@ def play(env, n_round, handles, models, print_every, eps=1.0, render=False, trai
     
     obs_list = []
     if render:
-        obs_list.append(env.render(mode='rgb_array'))
+        obs_list.append(env.render())
     
     n_group = len(handles)
     state = [None for _ in range(n_group)]
@@ -85,7 +85,7 @@ def play(env, n_round, handles, models, print_every, eps=1.0, render=False, trai
             total_rewards[i].append(sum_reward)
 
         if render:
-            obs_list.append(env.render(mode='rgb_array'))
+            obs_list.append(env.render())
             
         # clear dead agents
         env.unwrapped.env.clear_dead()
@@ -117,7 +117,7 @@ def battle(env, n_round, handles, models, print_every, eps=1.0, render=False, tr
 
     obs_list = []
     if render:
-        obs_list.append(np.transpose(env.render(mode='rgb_array'), axes=(1, 0, 2)))
+        obs_list.append(np.transpose(env.render(), axes=(1, 0, 2)))
 
     n_group = len(handles)
     state = [None for _ in range(n_group)]
