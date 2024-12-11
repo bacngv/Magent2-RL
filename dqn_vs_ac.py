@@ -13,7 +13,7 @@ def run_battle_with_red_opponent(ac_model_path, red_model_path, render_dir, map_
 
     # load ac or mfac pretrained model 
     blue_model = spawn_ai('ac', env, handles[0], 'blue', max_steps, use_cuda)
-    blue_model.load(ac_model_path, step=38)  
+    blue_model.load(ac_model_path, step=42)  
 
     # load red.pt
     q_network = QNetwork(
