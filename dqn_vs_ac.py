@@ -7,15 +7,15 @@ from senarios.senario_battle import play
 from torch_model import QNetwork
 
 def run_battle_with_red_opponent(ac_model_path, red_model_path, render_dir, map_size=45, max_steps=400, use_cuda=True):
-    # Initialize the environment
-    env = battle_v4.env(map_size=map_size, render_mode="rgb_array")
+    # init env
+    env = battle_v4.env(map_size=map_size, max_cycles = max_steps, render_mode="rgb_array")
     handles = env.unwrapped.env.get_handles()
 
-    # Load your trained AC model
+    # load ac or mfac pretrained model 
     blue_model = spawn_ai('ac', env, handles[0], 'blue', max_steps, use_cuda)
-    blue_model.load(ac_model_path, step=50)  # Load at step 50 as requested
+    blue_model.load(ac_model_path, step=38)  
 
-    # Load the pretrained Q-learning model
+    # load red.pt
     q_network = QNetwork(
         env.observation_space("red_0").shape, 
         env.action_space("red_0").n
@@ -24,7 +24,7 @@ def run_battle_with_red_opponent(ac_model_path, red_model_path, render_dir, map_
         torch.load(red_model_path, weights_only=True, map_location="cpu")
     )
 
-    # Create a wrapper for the Q-learning model to match the play() function interface
+    # create a wrapper for the q-learning 
     class QNetworkWrapper:
         def __init__(self, q_network):
             self.q_network = q_network
@@ -46,7 +46,7 @@ def run_battle_with_red_opponent(ac_model_path, red_model_path, render_dir, map_
 
     red_model = QNetworkWrapper(q_network)
 
-    # Run the battle
+    # run the battle
     render_dir = os.path.abspath(render_dir)
     os.makedirs(render_dir, exist_ok=True)
     render_path = os.path.join(render_dir, "battle.gif")
@@ -55,7 +55,7 @@ def run_battle_with_red_opponent(ac_model_path, red_model_path, render_dir, map_
         env=env,
         n_round=0,
         handles=handles,
-        models=[blue_model, red_model],
+        models=[red_model, blue_model],
         print_every=50,
         eps=1.0,
         render=True,
@@ -63,7 +63,7 @@ def run_battle_with_red_opponent(ac_model_path, red_model_path, render_dir, map_
         cuda=use_cuda
     )
 
-    # Save the battle as a GIF
+    # save gif
     if render_list:
         from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
         print(f"[*] Saving render to {render_path}...")
@@ -71,17 +71,16 @@ def run_battle_with_red_opponent(ac_model_path, red_model_path, render_dir, map_
         clip.write_gif(render_path, fps=20, verbose=False)
         print("[*] Render saved!")
 
-# Usage example
 if __name__ == "__main__":
-    AC_MODEL_PATH = "data/models/ac-0"  # Path to the AC trained model
-    RED_MODEL_PATH = "red.pt"  # Path to the pretrained Q-learning model
-    RENDER_DIR = "data"  # Directory to save the GIF
+    AC_MODEL_PATH = "data/models/ac-0"  
+    RED_MODEL_PATH = "red.pt"  
+    RENDER_DIR = "data"  
 
     run_battle_with_red_opponent(
         ac_model_path=AC_MODEL_PATH,
         red_model_path=RED_MODEL_PATH,
         render_dir=RENDER_DIR,
         map_size=45,
-        max_steps=1000,
+        max_steps=5000,
         use_cuda=True
     )
