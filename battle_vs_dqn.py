@@ -6,14 +6,14 @@ from algo import spawn_ai
 from senarios.senario_battle import play
 from torch_model import QNetwork
 
-def run_battle_with_red_opponent(ac_model_path, red_model_path, render_dir, map_size=45, max_steps=400, use_cuda=True):
+def run_battle_with_red_opponent(algo, step, ac_model_path, red_model_path, render_dir, map_size=45, max_steps=400, use_cuda=True):
     # init env
     env = battle_v4.env(map_size=map_size, max_cycles = max_steps, render_mode="rgb_array")
     handles = env.unwrapped.env.get_handles()
 
     # load ac or mfac pretrained model 
-    blue_model = spawn_ai('ac', env, handles[0], 'blue', max_steps, use_cuda)
-    blue_model.load(ac_model_path, step=42)  
+    blue_model = spawn_ai(algo, env, handles[0], 'blue', max_steps, use_cuda)
+    blue_model.load(ac_model_path, step=step)  
 
     # load red.pt
     q_network = QNetwork(
@@ -72,11 +72,14 @@ def run_battle_with_red_opponent(ac_model_path, red_model_path, render_dir, map_
         print("[*] Render saved!")
 
 if __name__ == "__main__":
-    AC_MODEL_PATH = "data/models/ac-0"  
+    AC_MODEL_PATH = "data/models/mfq-1"  
     RED_MODEL_PATH = "red.pt"  
     RENDER_DIR = "data"  
-
+    MODEL_NAME = 'mfq'
+    STEP = 1615
     run_battle_with_red_opponent(
+        algo=MODEL_NAME,
+        step=STEP,
         ac_model_path=AC_MODEL_PATH,
         red_model_path=RED_MODEL_PATH,
         render_dir=RENDER_DIR,
