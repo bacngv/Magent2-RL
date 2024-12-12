@@ -31,10 +31,10 @@ if __name__ == '__main__':
     parser.add_argument('--algo', type=str, choices={'ac', 'mfac', 'mfq', 'iql'}, help='choose an algorithm from the preset', required=True)
     parser.add_argument('--save_every', type=int, default=20, help='decide the self-play update interval')
     parser.add_argument('--update_every', type=int, default=5, help='decide the update interval for q-learning, optional')
-    parser.add_argument('--n_round', type=int, default=500, help='set the training round')
+    parser.add_argument('--n_round', type=int, default=600, help='set the training round')
     parser.add_argument('--render', action='store_true', help='render or not (if true, will render every save)')
     parser.add_argument('--map_size', type=int, default=45, help='set the size of map')  # then the amount of agents is 64
-    parser.add_argument('--max_steps', type=int, default=5000, help='set the max steps')
+    parser.add_argument('--max_steps', type=int, default=400, help='set the max steps')
     parser.add_argument('--cuda', type=bool, default=True, help='use the cuda')
     args = parser.parse_args()
 
@@ -60,7 +60,7 @@ if __name__ == '__main__':
         play,
         render_every=args.save_every if args.render else 0, 
         save_every=args.save_every, 
-        tau=0.02, 
+        tau=0.01, 
         log_name=args.algo,
         log_dir=log_dir, 
         model_dir=model_dir, 
