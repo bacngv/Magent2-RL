@@ -335,7 +335,7 @@ class Runner(object):
                 
         if len(render_list) > 0:
             print('[*] Saving Render')
-            clip = ImageSequenceClip(render_list, fps=20)
+            clip = ImageSequenceClip(render_list, fps=35)
             clip.write_gif('{}/replay_{}.gif'.format(self.render_dir, iteration+1), fps=20, verbose=False)
             print('[*] Saved Render')
             
