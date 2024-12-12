@@ -26,24 +26,24 @@ def run_battle_with_red_opponent(algo, step, ac_model_path, red_model_path, rend
 
     # create a wrapper for the q-learning 
     class QNetworkWrapper:
-        def __init__(self, q_network):
-            self.q_network = q_network
+        def __init__(self, q_network, use_cuda=True):
+            self.q_network = q_network.cuda() if use_cuda else q_network
             self.num_actions = q_network.network[-1].out_features
+            self.use_cuda = use_cuda
 
         def act(self, obs, feature=None, prob=None, eps=0):
+            # Ensure obs is on the correct device
+            if self.use_cuda:
+                obs = obs.cuda()
+            
             # Add batch dimension if needed
             if len(obs.shape) == 3:
                 obs = obs.unsqueeze(0)
             
-            # Epsilon-greedy exploration
-            if np.random.random() < eps:
-                return np.random.randint(0, self.num_actions, obs.shape[0])
-            
             # Use Q-network for action selection
             with torch.no_grad():
                 q_values = self.q_network(obs)
-                return torch.argmax(q_values, dim=1).numpy()
-
+                return torch.argmax(q_values, dim=1).cpu().numpy()
     red_model = QNetworkWrapper(q_network)
 
     # run the battle
@@ -67,12 +67,12 @@ def run_battle_with_red_opponent(algo, step, ac_model_path, red_model_path, rend
     if render_list:
         from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
         print(f"[*] Saving render to {render_path}...")
-        clip = ImageSequenceClip(render_list, fps=20)
-        clip.write_gif(render_path, fps=20, verbose=False)
+        clip = ImageSequenceClip(render_list, fps=35)
+        clip.write_gif(render_path, fps=35, verbose=False)
         print("[*] Render saved!")
 
 if __name__ == "__main__":
-    AC_MODEL_PATH = "data/models/mfq-1"  
+    AC_MODEL_PATH = "data/models/mfq-0"  
     RED_MODEL_PATH = "red.pt"  
     RENDER_DIR = "data"  
     MODEL_NAME = 'mfq'
@@ -84,6 +84,6 @@ if __name__ == "__main__":
         red_model_path=RED_MODEL_PATH,
         render_dir=RENDER_DIR,
         map_size=45,
-        max_steps=5000,
-        use_cuda=True
+        max_steps=500,
+        use_cuda=True 
     )
