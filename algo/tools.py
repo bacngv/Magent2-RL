@@ -142,7 +142,7 @@ class AgentMemory(object):
         self.feat0.append(np.array([feat0]))
         self.actions.append(np.array([act], dtype=np.int32))
         self.rewards.append(np.array([reward]))
-        self.terminals.append(np.array([not alive], dtype=np.bool))
+        self.terminals.append(np.array([not alive], dtype=bool))
 
         if self.use_mean:
             self.prob.append(np.array([prob]))
