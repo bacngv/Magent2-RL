@@ -7,7 +7,7 @@ from senarios.senario_battle import play
 from torch_model import QNetwork
 from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
 
-def run_battle_evaluation(ac_model_path, red_model_path, render_dir, map_size=45, max_steps=2000, use_cuda=True, num_episodes=30):
+def run_battle_evaluation(algo, step, ac_model_path, red_model_path, render_dir, map_size=45, max_steps=2000, use_cuda=True, num_episodes=10):
     blue_wins = 0
     red_wins = 0
     draws = 0
@@ -20,8 +20,8 @@ def run_battle_evaluation(ac_model_path, red_model_path, render_dir, map_size=45
         handles = env.unwrapped.env.get_handles()
 
         # load blue model
-        blue_model = spawn_ai('ac', env, handles[0], 'blue', max_steps, use_cuda)
-        blue_model.load(ac_model_path, step=50)
+        blue_model = spawn_ai(algo, env, handles[0], 'blue', max_steps, use_cuda)
+        blue_model.load(ac_model_path, step=step)
 
         # load red model
         q_network = QNetwork(
@@ -33,32 +33,35 @@ def run_battle_evaluation(ac_model_path, red_model_path, render_dir, map_size=45
         )
 
         class QNetworkWrapper:
-            def __init__(self, q_network):
-                self.q_network = q_network
+            def __init__(self, q_network, use_cuda=True):
+                self.q_network = q_network.cuda() if use_cuda else q_network
                 self.num_actions = q_network.network[-1].out_features
+                self.use_cuda = use_cuda
 
             def act(self, obs, feature=None, prob=None, eps=0):
-                if not isinstance(obs, torch.Tensor):
-                    obs = torch.tensor(obs, dtype=torch.float32)
+                # Ensure obs is on the correct device
+                if self.use_cuda:
+                    obs = obs.cuda()
+                
+                # Add batch dimension if needed
                 if len(obs.shape) == 3:
                     obs = obs.unsqueeze(0)
-                if np.random.random() < eps:
-                    return np.random.randint(0, self.num_actions, obs.shape[0])
+                
+                # Use Q-network for action selection
                 with torch.no_grad():
-                    obs = obs.permute(0, 3, 1, 2) if len(obs.shape) == 4 and obs.shape[-1] != self.q_network.network[0][0].weight.shape[1] else obs
                     q_values = self.q_network(obs)
-                    return torch.argmax(q_values, dim=1).numpy()
+                    return torch.argmax(q_values, dim=1).cpu().numpy()
 
         red_model = QNetworkWrapper(q_network)
 
         #RETURN: max_nums, nums, mean_rewards [mean_red, mean_blue], total_rewards, obs_list
         max_nums, nums, mean_rewards, _, obs_list = play(
             env=env,
-            n_round=0,
+            n_round=[episode],
             handles=handles,
             models=[red_model, blue_model],
             print_every=50,
-            eps=1.0,
+            eps=1,
             render=False,
             train=False,
             cuda=use_cuda
@@ -85,12 +88,12 @@ def run_battle_evaluation(ac_model_path, red_model_path, render_dir, map_size=45
         red_total_rewards.append(mean_rewards[0])   
 
         # render for final episode
-        if episode == num_episodes - 1:
+        if episode+1 == num_episodes:
             env = battle_v4.env(map_size=map_size, render_mode="rgb_array")
             handles = env.unwrapped.env.get_handles()
             
-            blue_model = spawn_ai('ac', env, handles[0], 'blue', max_steps, use_cuda)
-            blue_model.load(ac_model_path, step=50)
+            blue_model = spawn_ai(algo, env, handles[0], 'blue', max_steps, use_cuda)
+            blue_model.load(ac_model_path, step=step)
             
             q_network = QNetwork(
                 env.observation_space("red_0").shape, 
@@ -103,7 +106,7 @@ def run_battle_evaluation(ac_model_path, red_model_path, render_dir, map_size=45
 
             _, _, _, _, render_list = play(
                 env=env,
-                n_round=0,
+                n_round=[episode+1],
                 handles=handles,
                 models=[red_model, blue_model],
                 print_every=50,
@@ -118,8 +121,8 @@ def run_battle_evaluation(ac_model_path, red_model_path, render_dir, map_size=45
             render_path = os.path.join(render_dir, "battle.gif")
             
             if render_list:
-                clip = ImageSequenceClip(render_list, fps=20)
-                clip.write_gif(render_path, fps=20, verbose=False)
+                clip = ImageSequenceClip(render_list, fps=35)
+                clip.write_gif(render_path, fps=35, verbose=False)
                 print(f"[*] Render saved to {render_path}")
 
     # stat
@@ -129,17 +132,20 @@ def run_battle_evaluation(ac_model_path, red_model_path, render_dir, map_size=45
     print(f"Red Wins: {red_wins} ({red_wins/num_episodes*100:.2f}%)")
     print(f"Draws: {draws} ({draws/num_episodes*100:.2f}%)")
     print("\nReward Statistics:")
-    print(f"Blue Average Reward: {np.mean(blue_total_rewards):.2f} ± {np.std(blue_total_rewards):.2f}")
-    print(f"Red Average Reward: {np.mean(red_total_rewards):.2f} ± {np.std(red_total_rewards):.2f}")
+    print(f"Blue Average Reward: {np.mean(blue_total_rewards):.4f} ± {np.std(blue_total_rewards):.4f}")
+    print(f"Red Average Reward: {np.mean(red_total_rewards):.4f} ± {np.std(red_total_rewards):.4f}")
 
 
 if __name__ == "__main__":
-    AC_MODEL_PATH = "data/models/ac-0"
+    MODEL_PATH = "data/models/mfq-0"
     RED_MODEL_PATH = "red.pt"
     RENDER_DIR = "data"
-
+    ALGO = 'mfq'
+    STEP = '1876'
     run_battle_evaluation(
-        ac_model_path=AC_MODEL_PATH,
+        algo = ALGO,
+        step = STEP,
+        ac_model_path=MODEL_PATH,
         red_model_path=RED_MODEL_PATH,
         render_dir=RENDER_DIR,
         map_size=45,
