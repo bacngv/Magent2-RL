@@ -14,7 +14,7 @@ See `video` folder for a demo of how each type of opponent behaves.
 Checkout the [Colab notebook](https://colab.research.google.com/drive/1qmx_NCmzPlc-atWqexn2WueqMKB_ZTxc) for running this demo.
 
 ## How to run
-Checkout the [PIPELINE](https://drive.google.com/file/d/1YBfdcZdRyzDQCIqgf8Ed3rUC_h9D0LqM) for a comprehensive overview of running the agent in the MAgent2 environment.
+Checkout the [PIPELINE](https://colab.research.google.com/drive/1YBfdcZdRyzDQCIqgf8Ed3rUC_h9D0LqM) for a comprehensive overview of running the agent in the MAgent2 environment.
 
 ## Installation
 clone this repo and install with
