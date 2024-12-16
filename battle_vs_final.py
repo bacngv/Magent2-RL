@@ -76,7 +76,7 @@ if __name__ == "__main__":
     RED_MODEL_PATH = "red_final.pt"  
     RENDER_DIR = "data"  
     MODEL_NAME = 'iql'
-    STEP = 340
+    STEP = 1999
     run_battle_with_red_opponent(
         algo=MODEL_NAME,
         step=STEP,
