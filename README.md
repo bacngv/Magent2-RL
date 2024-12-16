@@ -14,12 +14,7 @@ See `video` folder for a demo of how each type of opponent behaves.
 Checkout the [Colab notebook](https://colab.research.google.com/drive/1qmx_NCmzPlc-atWqexn2WueqMKB_ZTxc) for running this demo.
 
 ## How to run
-```
-%cd Magent2-RL
-pip install -r requirements.txt
-python train_battle.py --algo ac --cuda True --render
-python play_and_record.py  
-```
+Checkout the [PIPELINE](https://drive.google.com/file/d/1YBfdcZdRyzDQCIqgf8Ed3rUC_h9D0LqM) for a comprehensive overview of running the agent in the MAgent2 environment.
 
 ## Installation
 clone this repo and install with
@@ -39,5 +34,3 @@ Refer to `eval.py` for the evaluation code, you might want to modify it with you
 2. [MAgent2 API Documentation](https://magent2.farama.org/introduction/basic_usage/)
 
 For further details on environment setup and agent interactions, please refer to the MAgent2 documentation.
-
-Checkout the [full Colab demo notebook](https://drive.google.com/file/d/1YBfdcZdRyzDQCIqgf8Ed3rUC_h9D0LqM) for a comprehensive overview of running the agent in the MAgent2 environment.
