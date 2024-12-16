@@ -8,10 +8,7 @@ In this final project, you will develop and train a reinforcement learning (RL) 
 
 Your agent's performance should be evaluated based on reward and win rate against each of these models. You should control *blue* agents when evaluating.
 
-<p align="center">
-  <img src="assets/random.gif" width="300" alt="random agent" />
-  <img src="assets/pretrained.gif" width="300" alt="pretrained agent" />
-</p>
+<p align="center"> <img src="data/battle_vs_dqn.gif" width="300" alt="Battle vs Random Agent" /> <img src="data/battle_vs_final.gif" width="300" alt="Battle vs Final Agent" /> </p> <p align="center"> <em>Left: red.pt vs IQL, Right: red_final.pt vs IQL</em> </p>
 
 See `video` folder for a demo of how each type of opponent behaves.
 Checkout the [Colab notebook](https://colab.research.google.com/drive/1qmx_NCmzPlc-atWqexn2WueqMKB_ZTxc) for running this demo.
@@ -43,4 +40,4 @@ Refer to `eval.py` for the evaluation code, you might want to modify it with you
 
 For further details on environment setup and agent interactions, please refer to the MAgent2 documentation.
 
-Checkout the [full Colab demo notebook](https://colab.research.google.com/drive/1H1dpXm3Q_1JVDfahbGdbmbmBoznChEFn?usp=sharing) for a comprehensive overview of running the agent in the MAgent2 environment.
+Checkout the [full Colab demo notebook](https://drive.google.com/file/d/1YBfdcZdRyzDQCIqgf8Ed3rUC_h9D0LqM) for a comprehensive overview of running the agent in the MAgent2 environment.
