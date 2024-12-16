@@ -72,11 +72,11 @@ def run_battle_with_red_opponent(algo, step, ac_model_path, red_model_path, rend
         print("[*] Render saved!")
 
 if __name__ == "__main__":
-    AC_MODEL_PATH = "data/models/mfq-0"  
+    AC_MODEL_PATH = "data/models/iql-0"  
     RED_MODEL_PATH = "red_final.pt"  
     RENDER_DIR = "data"  
-    MODEL_NAME = 'mfq'
-    STEP = 1000
+    MODEL_NAME = 'iql'
+    STEP = 340
     run_battle_with_red_opponent(
         algo=MODEL_NAME,
         step=STEP,

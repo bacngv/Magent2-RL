@@ -68,8 +68,8 @@ def run_battle_evaluation(algo, step, ac_model_path, red_model_path, render_dir,
         )
 
         n_dead = {
-            "blue": max_nums[0] - nums[0],
-            "red": max_nums[1] - nums[1]
+            "blue": max_nums[1] - nums[1],
+            "red": max_nums[0] - nums[0]
         }
 
         # law
@@ -118,7 +118,7 @@ def run_battle_evaluation(algo, step, ac_model_path, red_model_path, render_dir,
 
             render_dir = os.path.abspath(render_dir)
             os.makedirs(render_dir, exist_ok=True)
-            render_path = os.path.join(render_dir, "battle.gif")
+            render_path = os.path.join(render_dir, "iql_vs_dqn.gif")
             
             if render_list:
                 clip = ImageSequenceClip(render_list, fps=35)
@@ -137,11 +137,11 @@ def run_battle_evaluation(algo, step, ac_model_path, red_model_path, render_dir,
 
 
 if __name__ == "__main__":
-    MODEL_PATH = "data/models/mfq-0"
+    MODEL_PATH = "data/models/iql-0"
     RED_MODEL_PATH = "red.pt"
     RENDER_DIR = "data"
-    ALGO = 'mfq'
-    STEP = '1000'
+    ALGO = 'iql'
+    STEP = 340
     run_battle_evaluation(
         algo = ALGO,
         step = STEP,
