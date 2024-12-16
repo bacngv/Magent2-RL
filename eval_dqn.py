@@ -141,7 +141,7 @@ if __name__ == "__main__":
     RED_MODEL_PATH = "red.pt"
     RENDER_DIR = "data"
     ALGO = 'iql'
-    STEP = 340
+    STEP = 1999
     run_battle_evaluation(
         algo = ALGO,
         step = STEP,
