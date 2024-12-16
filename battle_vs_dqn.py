@@ -49,7 +49,7 @@ def run_battle_with_red_opponent(algo, step, ac_model_path, red_model_path, rend
     # run the battle
     render_dir = os.path.abspath(render_dir)
     os.makedirs(render_dir, exist_ok=True)
-    render_path = os.path.join(render_dir, "battle.gif")
+    render_path = os.path.join(render_dir, "battle_vs_dqn.gif")
 
     _, _, _, _, render_list = play(
         env=env,
@@ -76,7 +76,7 @@ if __name__ == "__main__":
     RED_MODEL_PATH = "red.pt"  
     RENDER_DIR = "data"  
     MODEL_NAME = 'mfq'
-    STEP = 1615
+    STEP = 1000
     run_battle_with_red_opponent(
         algo=MODEL_NAME,
         step=STEP,
