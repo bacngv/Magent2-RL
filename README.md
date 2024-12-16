@@ -8,14 +8,14 @@ In this final project, you will develop and train a reinforcement learning (RL) 
 
 Your agent's performance should be evaluated based on reward and win rate against each of these models. You should control *blue* agents when evaluating.
 
-
 <p align="center">
   <img src="assets/random.gif" width="300" alt="random agent" />
   <img src="assets/pretrained.gif" width="300" alt="pretrained agent" />
 </p>
 
 See `video` folder for a demo of how each type of opponent behaves.
-Checkout a [Colab notebook](https://colab.research.google.com/drive/1qmx_NCmzPlc-atWqexn2WueqMKB_ZTxc?usp=sharing) for running this demo.
+Checkout the [Colab notebook](https://colab.research.google.com/drive/1qmx_NCmzPlc-atWqexn2WueqMKB_ZTxc) for running this demo.
+
 ## How to run
 ```
 %cd Magent2-RL
@@ -42,3 +42,5 @@ Refer to `eval.py` for the evaluation code, you might want to modify it with you
 2. [MAgent2 API Documentation](https://magent2.farama.org/introduction/basic_usage/)
 
 For further details on environment setup and agent interactions, please refer to the MAgent2 documentation.
+
+Checkout the [full Colab demo notebook](https://colab.research.google.com/drive/1H1dpXm3Q_1JVDfahbGdbmbmBoznChEFn?usp=sharing) for a comprehensive overview of running the agent in the MAgent2 environment.
