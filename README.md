@@ -7,11 +7,11 @@ In this final project, you will develop and train a reinforcement learning (RL) 
 3. A Final Agent: A stronger pretrained agent, which will be released in the final week of the course before the deadline.
 
 Your agent's performance should be evaluated based on reward and win rate against each of these models. You should control *blue* agents when evaluating.
-
+<p align="center"> <img src="data/battle_vs_random.gif" width="300" alt="Battle vs Random Agent" /> </p> <p align="center"> <em>Random vs IQL</em> </p>
 <p align="center"> <img src="data/battle_vs_dqn.gif" width="300" alt="Battle vs Random Agent" /> <img src="data/battle_vs_final.gif" width="300" alt="Battle vs Final Agent" /> </p> <p align="center"> <em>Left: red.pt vs IQL, Right: red_final.pt vs IQL</em> </p>
 
 See `video` folder for a demo of how each type of opponent behaves.
-Checkout the [Colab notebook](https://colab.research.google.com/drive/1qmx_NCmzPlc-atWqexn2WueqMKB_ZTxc) for running this demo.
+Checkout the [Colab notebook](https://drive.google.com/file/d/1YBfdcZdRyzDQCIqgf8Ed3rUC_h9D0LqM) for running this demo.
 
 ## How to run
 Checkout the [PIPELINE](https://colab.research.google.com/drive/1uPcG_Gab7v01Wmtt63vIRSO0n-MgJPMp) for a comprehensive overview of running the agent in the MAgent2 environment.
